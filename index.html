@@ -121,3 +121,43 @@ document.getElementById('continueDemo').addEventListener('click',()=>{document.g
 })();
 </script>
 </body></html>
+
+<script>
+(()=>{
+ if(window.priceDecisionReady)return;window.priceDecisionReady=true;
+ const $=id=>document.getElementById(id),num=id=>Math.max(0,Number($(id)?.value)||0),money=n=>Number(n||0).toLocaleString('en-ZA',{minimumFractionDigits:2,maximumFractionDigits:2});
+ const title=document.querySelector('.strategy-title');if(title)title.textContent='Pricing decision';
+ const labels=['Pricing based on cost','Pricing based on customer value','Pricing based on competition'];
+ document.querySelectorAll('input[name="strategy"]').forEach((input,i)=>{const option=input.closest('.radio-option');if(option){input.nextSibling.textContent=labels[i];option.setAttribute('role','radio')}});
+ const row=document.querySelector('.radio-row');if(row)row.setAttribute('role','radiogroup');
+ const style=document.createElement('style');style.textContent='.radio-row{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}.radio-option{display:flex;align-items:center;justify-content:center;min-height:50px;line-height:1.35;white-space:normal}.value-price-field{margin:8px 0 12px}.value-price-hint{display:block;color:#849088;font-size:10px;margin-top:5px;line-height:1.4}@media(max-width:520px){.radio-row{grid-template-columns:1fr}.radio-option{min-height:38px}}';document.head.appendChild(style);
+ if(!$('valuePrice')){const field=document.createElement('div');field.className='field value-price-field';field.innerHTML='<label for="valuePrice">Customer value price</label><div class="input-wrap"><span class="prefix">R</span><input id="valuePrice" type="number" min="0" step="0.01" placeholder="Enter customer value per item"></div><small class="value-price-hint">Use a customer survey or interview to estimate what buyers would pay.</small>';document.querySelector('.margin-control').before(field)}
+ function recalculate(showToast=false){
+  const costIds=['materials','labour','packaging','shipping','marketing','other'],costs=costIds.reduce((s,id)=>s+num(id),0),margin=Math.min(.99,num('margin')/100),floor=costs/(1-margin);
+  const market=['comp1','comp2','comp3'].map(num).filter(x=>x>0).sort((a,b)=>a-b),median=market.length?(market.length%2?market[(market.length-1)/2]:(market[market.length/2-1]+market[market.length/2])/2):0,valuePrice=num('valuePrice'),mode=document.querySelector('input[name="strategy"]:checked')?.value||'balanced';
+  const suggested=mode==='value'?(valuePrice?Math.max(floor,valuePrice):floor):mode==='competitive'?(median?Math.max(floor,median):floor):floor,profit=suggested-costs,actual=suggested?profit/suggested:0;
+  $('costTotal').textContent='R'+money(costs);$('marginLabel').textContent=Math.round(margin*100);$('resultName').textContent=$('product').value.trim()||'Your product';$('price').textContent=money(suggested);$('profit').textContent='R'+money(profit);$('actualMargin').textContent=(actual*100).toFixed(1)+'%';$('monthly').textContent='R'+money(profit*num('volume'));$('comparePrice').textContent='R'+money(suggested);$('midpoint').textContent=median?'R'+money(median):'—';$('fit').textContent=mode==='balanced'?'Cost-based':mode==='value'?'Customer value':'Competition-based';
+  const low=market[0]||0,high=market.at(-1)||0,pos=!market.length?'no-market':suggested<low?'below':suggested>high?'above':'range';
+  $('marketNote').textContent=market.length+' competitor reference '+(market.length===1?'point':'points');
+  $('comparePosition').textContent=mode==='balanced'?'Cost and target margin':mode==='value'?(valuePrice?'Customer value estimate':'Add customer value estimate'):median?'Competitor median':'Add competitor prices';
+  let status='VIABLE RANGE',message='This cost-based price covers your costs and target gross margin. Validate the price with customers.';
+  if(mode==='value'&&!valuePrice){status='ADD VALUE INPUT';message='Enter a customer value estimate to use value-based pricing. The displayed price is the cost floor until you add one.'}
+  else if(mode==='value'&&valuePrice<floor){status='VALUE BELOW COST FLOOR';message='The customer value estimate is below the price needed to cover costs and target margin. Review costs or margin before testing.'}
+  else if(profit<=0){status='REVISIT COSTS';message='Review costs and the target margin before testing a price.'}
+  else if(mode==='value'){message='This price follows the customer value estimate while covering costs and target margin. Validate willingness to pay with more customers.'}
+  else if(mode==='competitive'&&!median){status='ADD COMPETITOR PRICES';message='Enter competitor prices to use competition-based pricing. The displayed price is the cost floor until then.'}
+  else if(mode==='competitive'){message='This price follows the competitor median while covering costs and target margin.'}
+  else if(pos==='below'||pos==='above'){status=pos==='below'?'BELOW MARKET':'ABOVE MARKET';message=pos==='below'?'Your cost-based price is below the competitor range. Check that it fits your positioning.':'Your cost-based price is above the competitor range. Validate whether customers see enough value.'}
+  $('status').textContent=status;$('recommendation').textContent=message;
+  const rows=[['Your price',suggested,true],...market.map((v,i)=>['Competitor '+String.fromCharCode(65+i),v,false]),...(valuePrice?[['Customer value',valuePrice,false]]:[])],scale=Math.max(1,...rows.map(r=>r[1]));$('bars').innerHTML=rows.map(r=>'<div class="bar-row"><span>'+r[0]+'</span><div class="bar-track"><div class="bar-fill '+(r[2]?'recommended':'')+'" style="width:'+Math.max(3,r[1]/scale*100)+'%"></div></div><span class="bar-price">R'+money(r[1],0)+'</span></div>').join('');
+  $('insight').innerHTML='<b>Pricing signal:</b> '+(mode==='balanced'?'Cost-based price is set from unit costs and the target margin.':mode==='value'?(valuePrice?'Customer value estimate is used, subject to the cost floor.':'Add a customer value estimate to complete this pricing method.'):(median?'Competitor median is used, subject to the cost floor.':'Add competitor prices to complete this pricing method.'));
+  document.querySelectorAll('.radio-option').forEach(o=>o.classList.toggle('selected',o.querySelector('input').checked));
+  if(showToast){const toast=$('toast');toast.textContent='Pricing recommendation updated';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='Recommendation updated'},1800)}
+ }
+ document.querySelectorAll('#product,#category,#volume,.cost,.competitor,#margin,#valuePrice').forEach(input=>{input.addEventListener('input',()=>recalculate());input.addEventListener('change',()=>recalculate())});
+ document.querySelectorAll('input[name="strategy"]').forEach(input=>input.addEventListener('change',()=>recalculate()));
+ $('calculate').addEventListener('click',()=>recalculate(true));
+ $('resetBtn').addEventListener('click',()=>{const defaults={product:'EcoFresh Water Bottle',category:'Reusable consumer product',volume:100,materials:45,labour:20,packaging:8,shipping:12,marketing:5,other:0,comp1:129,comp2:149,comp3:139,margin:30};Object.entries(defaults).forEach(([id,val])=>$(id).value=val);$('valuePrice').value='';document.querySelector('input[value="balanced"]').checked=true;recalculate(true)});
+ recalculate();
+})();
+</script>
