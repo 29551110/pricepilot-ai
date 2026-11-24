@@ -182,3 +182,6 @@ document.getElementById('continueDemo').addEventListener('click',()=>{document.g
 <script>
 (()=>{const category=document.getElementById('category'),volume=document.getElementById('volume');if(!category||!volume)return;const categoryField=category.closest('.field'),layout=volume.closest('.two-col'),volumeField=volume.closest('.field');if(categoryField)categoryField.style.display='none';if(layout){layout.style.display='block';layout.style.gridTemplateColumns='1fr'}if(volumeField){volumeField.style.width='100%';volumeField.style.marginBottom='14px'}category.value='';document.addEventListener('click',event=>{if(event.target?.id==='exportInputs')category.value=''},true);})();
 </script>
+
+<script>window.PRICEPILOT_ADVISOR_API = window.PRICEPILOT_ADVISOR_API || "";</script>
+<script src="./advisor.js" defer></script>
