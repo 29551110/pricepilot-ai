@@ -91,3 +91,33 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&loginModal.
 document.getElementById('continueDemo').addEventListener('click',()=>{document.getElementById('sessionLabel').textContent='Demo session';document.getElementById('loginOpen').textContent='Demo active';document.getElementById('accountAvatar').textContent='E';closeLogin();const toast=document.getElementById('toast');toast.textContent='Demo session started — nothing saved.';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='Recommendation updated'},2200)});
 </script>
 </body></html>
+<script>
+(()=>{
+ const $=id=>document.getElementById(id);
+ const number=id=>Math.max(0,Number($(id)?.value)||0);
+ const money=(value,digits=2)=>Number(value||0).toLocaleString('en-ZA',{minimumFractionDigits:digits,maximumFractionDigits:digits});
+ const cleanButton=id=>{const current=$(id);if(!current)return null;const fresh=current.cloneNode(true);current.replaceWith(fresh);return fresh};
+ const updateButton=cleanButton('calculate'),resetButton=cleanButton('resetBtn'),competitors=['comp1','comp2','comp3'];
+ function recalculate(showToast=false){
+  const costs=['materials','labour','packaging','shipping','marketing','other'].reduce((sum,id)=>sum+number(id),0),margin=Math.min(0.99,number('margin')/100);
+  const market=competitors.map(number).filter(value=>value>0).sort((a,b)=>a-b);
+  const median=market.length?(market.length%2?market[(market.length-1)/2]:(market[market.length/2-1]+market[market.length/2])/2):0;
+  const floor=costs/(1-margin),mode=document.querySelector('input[name="strategy"]:checked')?.value||'balanced',weight=mode==='competitive'?0.7:mode==='value'?0.2:0.42;
+  const suggested=median?Math.max(floor,floor*(1-weight)+median*weight):floor,profit=suggested-costs,actual=suggested?profit/suggested:0,low=market[0]||0,high=market[market.length-1]||0;
+  $('costTotal').textContent='R'+money(costs);$('marginLabel').textContent=Math.round(margin*100);$('resultName').textContent=$('product').value.trim()||'Your product';$('price').textContent=money(suggested);$('profit').textContent='R'+money(profit);$('actualMargin').textContent=(actual*100).toFixed(1)+'%';$('monthly').textContent='R'+money(profit*number('volume'),0);$('comparePrice').textContent='R'+money(suggested);$('midpoint').textContent=median?'R'+money(median):'—';$('fit').textContent=mode==='balanced'?'Balanced':mode==='value'?'Value-led':'Market-led';
+  const position=!market.length?'no-market':suggested<low?'below':suggested>high?'above':'range';$('status').textContent=profit<=0?'REVISIT COSTS':position==='below'?'BELOW MARKET':position==='above'?'ABOVE MARKET':position==='no-market'?'ADD MARKET PRICES':'VIABLE RANGE';
+  $('recommendation').textContent=profit<=0?'Review your costs and margin before testing a price.':position==='below'?'Your suggested price is below the entered competitor range. Check whether it covers all costs and fits your positioning.':position==='above'?'Your suggested price is above the entered competitor range. Validate that customers see enough added value at this price.':position==='no-market'?'This starting price covers the entered unit costs and target margin. Add competitor prices to compare it with the market.':'This starting price covers the entered unit costs and target margin and falls within the competitor range. Validate perceived value with customers.';
+  $('comparePosition').textContent=!market.length?'Add competitor prices':position==='below'?'Below competitor range':position==='above'?'Above competitor range':'Within competitor range';$('marketNote').textContent=market.length+' competitor reference '+(market.length===1?'point':'points');
+  const rows=[['Your price',suggested,true],...competitors.map((id,index)=>[String.fromCharCode(65+index),number(id),false]).filter(row=>row[1]>0)],scale=Math.max(1,...rows.map(row=>row[1]));$('bars').innerHTML=rows.map(row=>'<div class="bar-row"><span>'+(row[2]?'Your price':'Competitor '+row[0])+'</span><div class="bar-track"><div class="bar-fill '+(row[2]?'recommended':'')+'" style="width:'+Math.max(3,row[1]/scale*100)+'%"></div></div><span class="bar-price">R'+money(row[1],0)+'</span></div>').join('');
+  $('insight').innerHTML='<b>Market signal:</b> '+(position==='below'?'Your price is below the entered competitor range. Review cost coverage and positioning.':position==='above'?'Your price is above the entered competitor range. Validate the added value with customers.':position==='no-market'?'Enter competitor prices to see how your price compares.':'Your suggested price is within the entered competitor range. Use customer feedback to decide whether to hold, test or adjust it.');
+  if(showToast){const toast=$('toast');toast.textContent='Pricing recommendation updated';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='Recommendation updated'},1800)}
+ }
+ document.querySelectorAll('#product,#category,#volume,.cost,.competitor,#margin').forEach(input=>{input.addEventListener('input',()=>recalculate());input.addEventListener('change',()=>recalculate())});
+ document.querySelectorAll('input[name="strategy"]').forEach(input=>input.addEventListener('change',()=>{document.querySelectorAll('.radio-option').forEach(option=>option.classList.toggle('selected',option.querySelector('input').checked));recalculate()}));
+ updateButton?.addEventListener('click',()=>recalculate(true));
+ const defaults={product:'EcoFresh Water Bottle',category:'Reusable consumer product',volume:100,materials:45,labour:20,packaging:8,shipping:12,marketing:5,other:0,comp1:129,comp2:149,comp3:139,margin:30};
+ resetButton?.addEventListener('click',()=>{Object.entries(defaults).forEach(([id,value])=>$(id).value=value);document.querySelector('input[value="balanced"]').checked=true;document.querySelectorAll('.radio-option').forEach(option=>option.classList.toggle('selected',option.querySelector('input').checked));recalculate(true)});
+ const medianLabel=document.querySelector('.compare-box:not(.highlight) .compare-label');if(medianLabel)medianLabel.textContent='Competitor median';recalculate();
+})();
+</script>
+</body></html>
