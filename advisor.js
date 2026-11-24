@@ -55,3 +55,12 @@
     } catch (error) { setStatus(error.message || "Could not reach the advisor. Please try again."); } finally { button.disabled = false; }
   });
 })();
+
+
+(()=>{
+  const card=document.getElementById("advisorCard"),comparison=document.querySelector(".analysis");
+  if(card&&comparison)comparison.insertAdjacentElement("afterend",card);
+  const layoutStyle=document.createElement("style");
+  layoutStyle.textContent=".advisor-card{margin-top:16px!important;padding:18px 20px!important;width:100%}.advisor-head{margin-bottom:12px}.advisor-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.advisor-form>div{min-width:0}.advisor-form input,.advisor-form textarea{min-width:0}@media(max-width:560px){.advisor-card{padding:16px!important}.advisor-form{grid-template-columns:1fr}.advisor-question,.advisor-actions{grid-column:1}.advisor-actions{align-items:flex-start;flex-direction:column}}";
+  document.head.appendChild(layoutStyle);
+})();
