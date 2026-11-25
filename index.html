@@ -278,7 +278,7 @@ body{background:#e6f5f3!important;color:#15343a!important}
   const insight=document.getElementById('insight');if(insight)insight.textContent='Add competitor prices to compare your recommendation with the market.';
  };
  const clearInputs=()=>{
-  fieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  fieldIds.forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}});
   const margin=document.getElementById('margin');if(margin){margin.value=margin.min||'5';margin.dataset.userSet='false'}
   const strategy=document.querySelector('input[name="strategy"][value="balanced"]');if(strategy)strategy.checked=true;
   document.querySelectorAll('.radio-option').forEach(option=>option.classList.toggle('selected',option.querySelector('input')?.checked||false));
