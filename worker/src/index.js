@@ -23,7 +23,13 @@ export default { async fetch(request, env) {
   try { upstream = await fetch("https://api.openai.com/v1/responses", {method: "POST", headers: {authorization: "Bearer " + env.OPENAI_API_KEY, "content-type": "application/json"}, body: JSON.stringify(payload)}); }
   catch { return respond({error: "Could not connect to the advisor. Please try again."}, 502); }
   if (!upstream.ok) return respond({error: upstream.status === 429 ? "The advisor is busy. Try again shortly." : "The advisor could not complete that request."}, upstream.status === 429 ? 429 : 502);
-  const result = await upstream.json(), answer = clean(result.output_text, 10000), citations = new Map();
+  const result = await upstream.json();
+  const outputText = typeof result.output_text === "string" && result.output_text.trim()
+    ? result.output_text
+    : (result.output || []).flatMap(item => item.type === "message" ? (item.content || []) : [])
+      .filter(part => part.type === "output_text" && typeof part.text === "string")
+      .map(part => part.text).join("\n");
+  const answer = clean(outputText, 10000), citations = new Map();
   for (const item of result.output || []) for (const part of item.content || []) for (const citation of part.annotations || []) if (citation.type === "url_citation" && citation.url?.startsWith("https://")) citations.set(citation.url, {title: clean(citation.title, 180) || citation.url, url: citation.url});
   if (!answer) return respond({error: "The advisor returned an empty answer. Please try again."}, 502);
   return respond({answer, citations: research ? [...citations.values()].slice(0, 8) : [], researched: research});
