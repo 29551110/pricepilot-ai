@@ -267,3 +267,39 @@ body{background:#e6f5f3!important;color:#15343a!important}
 .section-overline{color:#27656a!important}.section-icon{background:#d7f1ec!important;color:#087f83!important}
 @media(max-width:950px){.layout{background:#e7f5f4!important}aside{background:#eff9f7!important}}
 </style>
+
+<script>
+(()=>{
+ const fieldIds=['product','category','volume','materials','labour','packaging','shipping','marketing','other','comp1','comp2','comp3','valuePrice','advisorRegion','advisorProduct','advisorQuestion'];
+ const blankOutputs=()=>{
+  const values={costTotal:'—',marginLabel:'—',resultName:'Your product',price:'—',profit:'—',actualMargin:'—',monthly:'—',fit:'—',status:'AWAITING INPUTS',recommendation:'Enter your costs and market prices to see a pricing recommendation.',comparePrice:'—',midpoint:'—',comparePosition:'Add competitor prices',marketNote:'Add competitor prices'};
+  Object.entries(values).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=value});
+  const bars=document.getElementById('bars');if(bars)bars.replaceChildren();
+  const insight=document.getElementById('insight');if(insight)insight.textContent='Add competitor prices to compare your recommendation with the market.';
+ };
+ const clearInputs=()=>{
+  fieldIds.forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  const margin=document.getElementById('margin');if(margin){margin.value=margin.min||'5';margin.dataset.userSet='false'}
+  const strategy=document.querySelector('input[name="strategy"][value="balanced"]');if(strategy)strategy.checked=true;
+  document.querySelectorAll('.radio-option').forEach(option=>option.classList.toggle('selected',option.querySelector('input')?.checked||false));
+  const button=document.getElementById('resetBtn');if(button)button.textContent='↺  Clear inputs';
+  blankOutputs();
+ };
+ const install=()=>{
+  clearInputs();
+  const oldButton=document.getElementById('resetBtn');
+  if(oldButton){const button=oldButton.cloneNode(true);button.textContent='↺  Clear inputs';oldButton.replaceWith(button);button.addEventListener('click',clearInputs)}
+  document.addEventListener('input',event=>{
+   const margin=document.getElementById('margin');
+   if(event.target===margin){margin.dataset.userSet='true';const label=document.getElementById('marginLabel');if(label)label.textContent=margin.value+'%'}
+   else if(margin?.dataset.userSet!=='true'){const label=document.getElementById('marginLabel');if(label)label.textContent='—'}
+   if(fieldIds.every(id=>!document.getElementById(id)?.value)){blankOutputs()}
+  });
+  document.addEventListener('change',event=>{
+   const margin=document.getElementById('margin');
+   if(event.target===margin){margin.dataset.userSet='true';const label=document.getElementById('marginLabel');if(label)label.textContent=margin.value+'%'}
+  });
+ };
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+})();
+</script>
