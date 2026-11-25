@@ -1,66 +1,13 @@
-(() => {
-  const host = document.querySelector(".main");
-  if (!host || document.getElementById("advisorCard")) return;
-  const style = document.createElement("style");
-  style.textContent = `
-    .advisor-card{margin-top:20px;background:#fff;border:1px solid #e4e9e3;border-radius:14px;padding:20px 22px;box-shadow:0 12px 32px #233f3010}
-    .advisor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:15px}
-    .advisor-head h2{font:700 16px Manrope,sans-serif;margin:0 0 5px;color:#17251f}
-    .advisor-head p{font-size:11px;line-height:1.5;color:#728078;margin:0;max-width:600px}
-    .advisor-form{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-    .advisor-form label{display:block;color:#546259;font-size:11px;font-weight:600;margin-bottom:5px}
-    .advisor-form input,.advisor-form textarea{width:100%;border:1px solid #e1e7e1;border-radius:8px;background:#fff;padding:10px 11px;color:#24352c;font:12px 'DM Sans',sans-serif;outline:none}
-    .advisor-form input:focus,.advisor-form textarea:focus{border-color:#61a17b;box-shadow:0 0 0 3px #1e704f14}
-    .advisor-question{grid-column:1/-1}.advisor-form textarea{min-height:80px;resize:vertical;line-height:1.5}
-    .advisor-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .advisor-research{display:flex!important;align-items:center;gap:7px;margin:0!important;color:#66746b!important;font-size:10px!important;font-weight:500!important}
-    .advisor-research input{width:auto!important;accent-color:#1e704f}
-    .advisor-submit{border:0;border-radius:8px;background:#173d30;color:#fff;font-size:11px;font-weight:700;padding:11px 15px;cursor:pointer}
-    .advisor-submit:disabled{opacity:.6;cursor:wait}
-    .advisor-status{font-size:10px;color:#728078;line-height:1.5;margin:10px 0 0;min-height:15px}
-    .advisor-answer{display:none;margin-top:12px;padding:14px 15px;border-radius:9px;background:#f4f8f4;color:#34483b;font-size:12px;line-height:1.65;white-space:pre-wrap}
-    .advisor-sources{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-    .advisor-sources a{color:#286345;font-size:10px;font-weight:600}
-    @media(max-width:560px){.advisor-card{padding:17px 16px}.advisor-form{grid-template-columns:1fr}.advisor-question,.advisor-actions{grid-column:1}.advisor-actions{align-items:flex-start;flex-direction:column}}
-  `;
-  document.head.appendChild(style);
-  const card = document.createElement("section"); card.className = "advisor-card"; card.id = "advisorCard";
-  card.innerHTML = `
-    <div class="advisor-head"><div><h2>AI product advisor</h2><p>Get guidance on products, pricing, competitors and material costs. Add your location for regional context.</p></div></div>
-    <div class="advisor-form">
-      <div><label for="advisorRegion">Region or city</label><input id="advisorRegion" maxlength="120" placeholder="e.g. Stellenbosch, South Africa"></div>
-      <div><label for="advisorProduct">Product</label><input id="advisorProduct" maxlength="120" placeholder="Uses your product name"></div>
-      <div class="advisor-question"><label for="advisorQuestion">What would you like advice on?</label><textarea id="advisorQuestion" maxlength="1200" placeholder="For example: What competitors sell similar products near me, and what are the typical prices?"></textarea></div>
-      <div class="advisor-actions"><label class="advisor-research"><input id="advisorResearch" type="checkbox"> Research current prices online (may cost more per question)</label><button class="advisor-submit" id="advisorAsk" type="button">Ask the advisor →</button></div>
-    </div>
-    <p class="advisor-status" id="advisorStatus" role="status" aria-live="polite">The advisor service is not connected yet.</p><div class="advisor-answer" id="advisorAnswer"></div>
-  `;
-  const footer = host.querySelector(".footer-note"); if (footer) host.insertBefore(card, footer); else host.appendChild(card);
-  const setStatus = text => { document.getElementById("advisorStatus").textContent = text; };
-  document.getElementById("advisorProduct").value = document.getElementById("product")?.value || "";
-  document.getElementById("product")?.addEventListener("input", event => { const product = document.getElementById("advisorProduct"); if (!product.dataset.edited) product.value = event.target.value; });
-  document.getElementById("advisorProduct").addEventListener("input", event => { event.target.dataset.edited = "true"; });
-  document.getElementById("advisorAsk").addEventListener("click", async () => {
-    const endpoint = window.PRICEPILOT_ADVISOR_API || "";
-    if (!endpoint) { setStatus("The advisor service is not connected yet. Its Cloudflare address will be added after deployment."); return; }
-    const question = document.getElementById("advisorQuestion").value.trim(); if (!question) { setStatus("Enter a question first."); return; }
-    const button = document.getElementById("advisorAsk"), answerBox = document.getElementById("advisorAnswer"); button.disabled = true; answerBox.style.display = "none"; setStatus("Thinking…");
-    const prices = Object.fromEntries(["materials","labour","packaging","shipping","marketing","other","comp1","comp2","comp3","margin","volume"].map(id => [id, document.getElementById(id)?.value || ""]));
-    try {
-      const result = await fetch(endpoint, {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question,region:document.getElementById("advisorRegion").value.trim(),product:document.getElementById("advisorProduct").value.trim(),research:document.getElementById("advisorResearch").checked,prices})});
-      const data = await result.json(); if (!result.ok) throw new Error(data.error || "The advisor could not answer right now.");
-      answerBox.textContent = data.answer || "No answer was returned."; const citations = Array.isArray(data.citations) ? data.citations : [];
-      if (citations.length) { const sources = document.createElement("div"); sources.className = "advisor-sources"; citations.forEach(source => { if (!/^https:\/\//i.test(source.url || "")) return; const link = document.createElement("a"); link.href=source.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=source.title||source.url; sources.appendChild(link); }); answerBox.appendChild(sources); }
-      answerBox.style.display = "block"; setStatus(data.researched ? "Research complete. Check the linked sources and dates before using a price." : "General guidance. Turn on current online research when you need up-to-date local prices.");
-    } catch (error) { setStatus(error.message || "Could not reach the advisor. Please try again."); } finally { button.disabled = false; }
-  });
-})();
-
-
 (()=>{
-  const card=document.getElementById("advisorCard"),comparison=document.querySelector(".analysis");
-  if(card&&comparison)comparison.insertAdjacentElement("afterend",card);
-  const layoutStyle=document.createElement("style");
-  layoutStyle.textContent=".advisor-card{margin-top:16px!important;padding:18px 20px!important;width:100%}.advisor-head{margin-bottom:12px}.advisor-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.advisor-form>div{min-width:0}.advisor-form input,.advisor-form textarea{min-width:0}@media(max-width:560px){.advisor-card{padding:16px!important}.advisor-form{grid-template-columns:1fr}.advisor-question,.advisor-actions{grid-column:1}.advisor-actions{align-items:flex-start;flex-direction:column}}";
-  document.head.appendChild(layoutStyle);
+const host=document.querySelector(".main");if(!host||document.getElementById("advisorCard"))return;
+const style=document.createElement("style");style.textContent=".advisor-card{margin-top:16px!important;padding:18px 20px!important;width:100%;background:#fff;border:1px solid #c8e2e2;border-radius:14px;box-shadow:0 12px 30px #064b5312}.advisor-head{margin-bottom:14px}.advisor-head h2{font:700 16px Manrope,Arial,sans-serif;margin:0 0 5px;color:#123f49}.advisor-head p{font-size:11px;line-height:1.5;color:#68828a;margin:0}.advisor-brief{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:12px}.advisor-brief-item{min-width:0;padding:11px 12px;border:1px solid #c8dfdd;border-radius:9px;background:#f7fcfb}.advisor-brief-item span{display:block;color:#638085;font-size:10px;margin-bottom:5px}.advisor-brief-item strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#10464e;font:700 13px Manrope,Arial,sans-serif}.advisor-controls{display:grid;grid-template-columns:minmax(130px,1fr) auto auto;align-items:center;gap:10px}.advisor-region label{display:block;color:#546d70;font-size:10px;font-weight:600;margin-bottom:5px}.advisor-region input{width:100%;height:37px;border:1px solid #c8dfdd;border-radius:8px;background:#fbfefd;padding:0 10px;color:#193d44;font:12px Arial,sans-serif}.advisor-research{display:flex;align-items:center;gap:6px;color:#54777b;font-size:10px;white-space:nowrap}.advisor-research input{width:auto;accent-color:#087f83}.advisor-submit{min-height:38px;border:0;border-radius:8px;background:linear-gradient(100deg,#00666b,#078b83);color:#fff;font-size:11px;font-weight:700;padding:0 14px;cursor:pointer;white-space:nowrap}.advisor-submit:disabled{opacity:.6}.advisor-status{font-size:10px;color:#68828a;line-height:1.5;margin:9px 0 0;min-height:15px}.advisor-answer{display:none;margin-top:12px;padding:14px 15px;border:1px solid #c8dfdd;border-radius:9px;background:#f7fcfb;color:#23464c;font-size:12px;line-height:1.65;white-space:pre-wrap}.advisor-sources{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.advisor-sources a{color:#087f83;font-size:10px;font-weight:600}@media(max-width:640px){.advisor-card{padding:16px!important}.advisor-brief{grid-template-columns:1fr}.advisor-controls{grid-template-columns:1fr 1fr}.advisor-region{grid-column:1/-1}.advisor-actions{display:flex;justify-content:space-between;align-items:center;gap:8px}}";document.head.appendChild(style);
+const card=document.createElement("section");card.className="advisor-card";card.id="advisorCard";card.innerHTML='<div class="advisor-head"><h2>AI product advisor</h2><p>Get a pricing review from your product cost, competitor prices and target margin.</p></div><div class="advisor-brief"><div class="advisor-brief-item"><span>Product cost / unit</span><strong id="advisorCostSummary">Not entered</strong></div><div class="advisor-brief-item"><span>Competitor prices</span><strong id="advisorCompetitorSummary">Not entered</strong></div><div class="advisor-brief-item"><span>Target margin</span><strong id="advisorMarginSummary">Not set</strong></div></div><div class="advisor-controls"><div class="advisor-region"><label for="advisorRegion">Region or city (optional)</label><input id="advisorRegion" maxlength="120" placeholder="e.g. Rustenburg, South Africa"></div><div class="advisor-actions"><label class="advisor-research"><input id="advisorResearch" type="checkbox"> Research current prices</label></div><button class="advisor-submit" id="advisorAsk" type="button">Generate pricing advice →</button></div><p class="advisor-status" id="advisorStatus" role="status" aria-live="polite">Advice uses your current inputs from Product analysis.</p><div class="advisor-answer" id="advisorAnswer"></div>';
+const comparison=host.querySelector(".analysis");if(comparison)comparison.insertAdjacentElement("afterend",card);else host.appendChild(card);
+const costIds=["materials","labour","packaging","shipping","marketing","other"],competitorIds=["comp1","comp2","comp3"],currency=n=>new Intl.NumberFormat("en-ZA",{style:"currency",currency:"ZAR",maximumFractionDigits:2}).format(n);
+const valueOf=id=>{const v=document.getElementById(id)?.value;if(v===undefined||v===null||v==="")return null;const n=Number(v);return Number.isFinite(n)&&n>=0?n:null};
+function inputs(){const costs=costIds.map(valueOf),competitors=competitorIds.map(valueOf).filter(v=>v!==null),marginInput=document.getElementById("margin");return{hasCost:costs.some(v=>v!==null),cost:costs.reduce((s,v)=>s+(v??0),0),competitors,margin:marginInput?.dataset.userSet==="true"?valueOf("margin"):null}}
+function refresh(){const v=inputs();document.getElementById("advisorCostSummary").textContent=v.hasCost?currency(v.cost):"Not entered";document.getElementById("advisorCompetitorSummary").textContent=v.competitors.length?v.competitors.map(currency).join(" · "):"Not entered";document.getElementById("advisorMarginSummary").textContent=v.margin===null?"Not set":v.margin+"%"}
+document.addEventListener("input",refresh);document.addEventListener("change",refresh);refresh();
+const status=t=>document.getElementById("advisorStatus").textContent=t;
+document.getElementById("advisorAsk").addEventListener("click",async()=>{const endpoint=window.PRICEPILOT_ADVISOR_API||"";if(!endpoint){status("The advisor service is not connected yet.");return}const v=inputs();if(!v.hasCost){status("Add your unit costs in Product analysis to get a pricing review.");return}if(v.margin===null){status("Set your target gross margin in Product analysis first.");return}const btn=document.getElementById("advisorAsk"),answer=document.getElementById("advisorAnswer");btn.disabled=true;answer.replaceChildren();answer.style.display="none";status("Reviewing your pricing inputs…");const prices=Object.fromEntries([...costIds,...competitorIds,"volume"].map(id=>[id,document.getElementById(id)?.value||""]));prices.margin=String(v.margin);const question="Analyze this product using the supplied inputs. Product cost per unit: R"+v.cost.toFixed(2)+". Competitor prices: "+(v.competitors.length?v.competitors.map(n=>"R"+n.toFixed(2)).join(", "):"not provided")+". Desired gross margin: "+v.margin+"%. Return concise business advice in exactly five numbered sections: 1. Suggested selling price 2. Explanation 3. Key pricing risks 4. Profitability assessment 5. Recommended actions. Use ZAR, state assumptions, and note missing competitor data.";try{const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({question,product:document.getElementById("product")?.value.trim()||"",region:document.getElementById("advisorRegion").value.trim(),research:document.getElementById("advisorResearch").checked,prices,productCost:v.cost})});const data=await response.json();if(!response.ok)throw new Error(data.error||"The advisor could not answer right now.");answer.textContent=data.answer||"No advice was returned.";if(Array.isArray(data.citations)&&data.citations.length){const links=document.createElement("div");links.className="advisor-sources";data.citations.forEach(source=>{if(!String(source.url||"").startsWith("https://"))return;const a=document.createElement("a");a.href=source.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=source.title||source.url;links.appendChild(a)});answer.appendChild(links)}answer.style.display="block";status(data.researched?"Research complete. Check linked sources and dates before using a price.":"Pricing review complete.")}catch(error){status(error.message||"Could not reach the advisor. Please try again.")}finally{btn.disabled=false}})
 })();
